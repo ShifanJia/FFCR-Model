@@ -6,9 +6,6 @@ library(fda)
 library(caret)
 library(sparrow)
 
-# ----Set the working directory to the specified path
-setwd("/Users/grace/Desktop/Projectone/RealData/DATA2")
-
 # -----Read the raw dataset CSV file--
 champ_word_data = read.csv("rowing_world_championships.csv")
 
@@ -69,40 +66,9 @@ races_Y_W <- races_cleaned_W  %>%
 races_A_W <- races_cleaned_W  %>%
   dplyr::select(starts_with("strokes_"))
 
-#Standardize the datasets
- speed_standardized_M <- scale_rows(races_Y_M, center = TRUE,scale = TRUE)  # 8137 x 40
- stroke_standardized_M <- scale_rows(races_A_M,center = TRUE,scale = TRUE) # 8137 x 40
-# 
-# 
-# speed_standardized_W <- scale(races_Y_W,center = TRUE,scale = TRUE)  # 8137 x 40
-# stroke_standardized_W <- scale(races_A_W,center = TRUE,scale = TRUE) # 8137 x 40
-# 
-
-# Standardize the datasets
-# speed_standardized_M <- as.matrix( races_Y_M)  # 8137 x 40
-# stroke_standardized_M <- as.matrix(races_A_M)  # 8137 x 40
-
-# speed_standardized_W <- as.matrix(races_Y_W)   # 8137 x 40
-# stroke_standardized_W <- as.matrix (races_A_W)# 8137 x 40
-
-# ------Center Data-------
-# speed_standardized_M <- speed_standardized_M  - apply(speed_standardized_M , 1, mean)
-# stroke_standardized_M <- stroke_standardized_M  - apply(stroke_standardized_M ,1,mean)
-# 
-# speed_standardized_W <- speed_standardized_W  - apply(speed_standardized_W , 1, mean)
-# stroke_standardized_W <- stroke_standardized_W  - apply(stroke_standardized_W ,1,mean)
-
-
-# Add the "speed_0" column to the matrices
-# races_speed_standardized <- cbind(speed_0 = zeros, races_speed_standardized)  # 8137 x 41
-# races_stroke_standardized <- cbind(stroke_0 = zeros, races_stroke_standardized) # 8137 x 41
-
 # Create a sequence of distances from 50 to 2000m with an interval of 50m
 meter <- seq(50, 2000, by = 50)
 meters <- seq(50, 2000, by = 50)
-
-#meters = (meter-min(meter))/(max(meter)-min(meter))
-
 
 # Create line plots for each row in the standardized speed Men dataset
 for (i in 1:20) {
@@ -314,18 +280,6 @@ for(i in 1:nrow(stroke_standardized_M)) {
   dense_stroke_smoothed_M[i,] <- eval.fd(dense_points, smoothObj$fd)
 }
 
-# for (i in 1:10) {
-#   plot(meters, stroke_standardized_M[i,], col="red", 
-#        ylim=c(min(stroke_standardized_M[1:80,]), max(stroke_standardized_M[1:80,])),
-#        ylab="Stroke", 
-#        xlab="Time", 
-#        main="Sample Curve with Smoothing")
-#   lines(meters, stroke_smoothed_M[i,], col="blue")
-#   lines(dense_points, dense_stroke_smoothed_M[i,], col = 'green')
-#   legend("topright", legend=c("Original", "Smoothed"), 
-#          fill=c("red", "blue"))
-# }
-
 for (i in 1:10) {
   plot(meters,   stroke_smoothed_M[i,], col="red", type = 'l',
        ylab="Stroke",
@@ -368,17 +322,6 @@ for(i in 1:nrow(stroke_standardized_W)) {
   dense_stroke_smoothed_W[i,] <- eval.fd(dense_points, smoothObj$fd)
 }
 
-# for (i in 1:10) {
-#   plot(meters, stroke_standardized_W[i,], col="red", 
-#        ylab="stroke", 
-#        xlab="Time", 
-#        main="Sample Curve with Smoothing")
-#   lines(meters, stroke_smoothed_W[i,], col="blue")
-#   lines(dense_points, dense_stroke_smoothed_W[i,], col = 'green')
-#   legend("topright", legend=c("Original", "Smoothed"), 
-#          fill=c("red", "blue"))
-# }
-
 for (i in 1:10) {
   plot(meters,   stroke_smoothed_W[i,], col="red", type = 'l',
        ylab="Stroke",
@@ -406,20 +349,6 @@ plot(meters, stroke_smoothed_W[random_rows[1],], type="n",
 for (i in random_rows) {
   lines(meters, stroke_smoothed_W[i,], col=sample(rainbow(10), 1))  # Using rainbow colors for distinction
 }
-
-
-#save data
-# write.csv(dense_speed_smoothed_M, file = "centerMenSpeed.csv")
-# write.csv(dense_speed_smoothed_W, file = "centerWomenSpeed.csv")
-# write.csv(dense_stroke_smoothed_M, file = "centerMenStroke.csv")
-# write.csv(dense_stroke_smoothed_W, file = "centerWomenStroke.csv")
-
-
-# write.csv(dense_speed_smoothed_M, file = "NormMenSpeed.csv")
-# write.csv(dense_speed_smoothed_W, file = "NormWomenSpeed.csv")
-# write.csv(dense_stroke_smoothed_M, file = "NormMenStroke.csv")
-# write.csv(dense_stroke_smoothed_W, file = "NormWomenStroke.csv")
-
 
 # ----------different types of races 
 races_size <- champ_word_data %>%

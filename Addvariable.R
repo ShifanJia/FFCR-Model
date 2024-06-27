@@ -1,18 +1,5 @@
-rm(list= ls())
-
-# ------provide directory of the RData--------
-setwd("/Users/grace/Desktop/Projectone/RealData/DATA1")
-
 source('PMSE.R')
 source('Funs.R')
-
-library(fda)
-library(dbplyr)
-library(MASS)
-library(splines)
-library(rgl)
-library(plotly)
-library(psych)
 
 windspeed = read.csv("WindSpeed.csv",header = T,row.names = 1)
 

@@ -1,3 +1,12 @@
+# functions for
+# *** FFCR method
+# *** close form
+# *** FFLR (Ramsay and Silverman (2005))
+
+
+
+
+
 # main function
 library(fda)
 library(ggplot2)

@@ -252,3 +252,311 @@ PMSE = function(n, YTrue , Ypred, s){
   return(pmse)
 }
 
+#---- GIVE phi psi R1 R2-------
+
+basisphi <- basisphi.gen(d , M , domain = time_rangeval)
+PhiMat   <- compute.phi ( d , M , domain = time_rangeval , t= tobs)
+psi      <- psi.generator (d  , M , domain = c( min(As), max(As)))
+Psiyorder  = eval.basis(y, psi)
+psievalist <- psi.eval.fun(n =n, psi = psi, As) # N dim:P*7
+nbasis_psi <- psi$nbasis
+
+s    <- seq(0, 1, length.out = p)
+zeta <- computeZeta(n = n, nbasis_psi, psievalist, s) # n*7
+
+R1  <- eval.penalty(psi, Lfdobj = int2Lfd(2),  y) # L*L
+R3  <- eval.penalty(basisphi, Lfdobj =int2Lfd(2), tobs) # K*K
+
+R2       <- eval.penalty(theta.basis, Lfdobj =int2Lfd(2), tobs)
+
+#---Step 1. Begin with an initial estimate b0-----------
+
+b_coef0  <- b.fit(XTrue , YTrue, basismat, tobs, k= 0.1, R = R2)
+Betafit  <- Beta.function(b = b_coef0 ,basismat, tobs)
+
+Ystar1 = Yfit.fun(tobs,  XTrue , Betafit) 
+nbasis <- dim(basismat)[2]
+#MSE    <- t(Y - Ytilde)%*%(Y - Ytilde)/(n - nbasis)
+#MSE = SSEY(Y, Ytilde, n , nbasis )
+
+# for (i in 1:100) {
+#   plot(Ytilde[i,], Y[i,], xlab = 'Y observe',ylab = 'Y Fit',
+#        main='Fitted vs. Observed')
+#   abline(a = 0,  b = 1)
+# }
+
+# -------step 2 solve gamma-----------------------------------------------
+
+W_1  <- compute.u(Ystar1 , d = 3, M = 20,  domain = time_rangeval)
+
+gamma_1 = gamma.fun(zeta, W_1 , basisphi, tobs, nbasis_psi, psi, y, 0.01, 0,01, R1,R3)
+
+hpredorder1 <- PhiMat  %*% gamma_1 %*% t(Psiyorder)
+
+# -------step 3 update beta-----------------------------------------------
+
+Ytilde_2 <- YTrue - zeta %*% t(gamma_1) %*% t(PhiMat)
+b_coef1  <- b.fit(XTrue , Ytilde_2 , basismat, tobs, k= 0.1, R = R2)
+Betafit1  <- Beta.function(b = b_coef1 ,basismat, tobs)
+
+# --------plot smooth beta and no smooth beta------------------
+plot(tobs, Betafit, type='l', )
+lines(tobs, Beta_true, col='red')
+
+#---------next iertation----------------------------------
+Ystar2 = Yfit.fun(tobs,  XTrue , Betafit1) 
+
+W_2  <- compute.u(Ystar2 , d = 3, M = 20,  domain = time_rangeval)
+
+gamma_2 = gamma.fun(zeta, W_2 , basisphi, tobs, nbasis_psi, psi, y, 0.01, 0.01, R1, R3)
+
+hpredorder2 <- PhiMat  %*% gamma_2 %*% t(Psiyorder)
+
+open3d()
+persp3d(t , y_order, hpredorder1, 
+        col = 'lightgreen',
+        xlab = 't', 
+        ylab = 'z',
+        zlab = 'h(t,z)',
+        axes = TRUE,
+        border = NA, 
+        facets = FALSE,
+        xlim = c(0, 2*pi/10),
+        zlim  = c(min(hsurface2)+1, max(hsurface2)))
+
+
+
+fold_indices <- split(1:n, cut(1:n, breaks = 10, labels = FALSE))
+results <- list()  # Initialize a list to store results
+average_rmse <- numeric()  # Vector to store the average RMSE of each combination
+params_labels <- character()  # Vector to store the corresponding parameter labels
+
+#---------------given b0--------------
+b_coef0   <- b.fit(XTrue , YTrue, basismat, tobs, k= 0.1, R = R2)
+Betafit_0 <- Beta.function(b = b_coef0 ,basismat, tobs)
+Betafit_0 <- matrix(diag(Betafit_0 ), nrow =length(tobs) , ncol =length(tobs))
+Ystar1    = Yfit.fun(tobs,  XTrue , Betafit_0) 
+
+
+fold_indices <- split(1:n, cut(1:n, breaks = 10, labels = FALSE))
+candidate_values <- c(0.01, 0.1, 0.5, 1)
+results <- list()  # Initialize a list to store results
+average_rmse <- numeric()  # Vector to store the average RMSE of each combination
+params_labels <- character()  # Vector to store the corresponding parameter labels
+
+for (fold in 1: 10) {
+  test_indices  <- fold_indices[[fold]]
+  train_indices <- setdiff(1:n, test_indices)
+  
+  XTrain = XTrue[train_indices,] # N_train x T
+  YTrain = YTrue[train_indices,] # N_train x T
+  ZetaTrain = zeta[train_indices,]
+  XTest = XTrue[test_indices,] # N_test x T
+  YTest = YTrue[test_indices,] # N_test x T
+  ZetaTest = zeta[test_indices,]
+  
+  # Iterate over each combination of parameter values
+    for (lambda_y in candidate_values) {
+      for (lambda_t in candidate_values) {
+        Ystar1  = YTrain - XTrain %*% t(Betafit_0)
+        
+        W_1     <- compute.u(Ystar1 , d = 3, M = 20,  domain = time_rangeval)
+        
+        gamma_1 = gamma.fun(ZetaTrain, W_1 , basisphi, tobs, nbasis_psi, psi, y, lambda_y,lambda_t, R1,R3)
+        
+        #---------get cv score-------
+        integralH_pred  <- ZetaTest %*% t(gamma_1) %*% t(PhiMat)
+        Ypred           <- XTest %*% BetaTruemat + integralH_pred
+        RMSE            <- YMSE(n=20, YTest, Ypred, s)
+
+        # Store RMSE with parameter combination information
+        params <- paste( "lambda_y =", lambda_y, "lambda_t =", lambda_t, sep=",")
+        if (!is.list(results[[params]])) {
+          results[[params]] <- numeric(10)  # Initialize numeric vector if not already initialized
+        }
+        results[[params]][fold] <- RMSE
+      }
+    }
+  }
+
+# Calculate average RMSE for each parameter combination
+for (param in names(results)) {
+  average_rmse <- c(average_rmse, mean(results[[param]], na.rm = TRUE))
+  params_labels <- c(params_labels, param)
+}
+
+# Identify the minimum RMSE and corresponding parameters
+min_index <- which.min(average_rmse)
+min_rmse <- average_rmse[min_index]
+best_params <- params_labels[min_index]
+
+cat("The minimum average RMSE is", min_rmse, "with parameters", best_params, "\n")
+
+# Calculate average RMSE for each parameter combination and find the best
+for (param in names(results)) {
+  avg_rmse = mean(results[[param]], na.rm = TRUE)
+  average_rmse <- c(average_rmse, avg_rmse)
+  params_labels <- c(params_labels, param)
+  
+  if (!exists("min_rmse") || avg_rmse < min_rmse) {
+    min_rmse <- avg_rmse
+    best_params <- param
+    best_gamma  <- gamma_1  # Update the best gamma
+  }
+}
+
+# --------------iterantion update b---------
+Ytilde_2 <- YTrue - zeta %*% t(best_gamma) %*% t(PhiMat)
+
+fold_indices <- split(1:n, cut(1:n, breaks = 10, labels = FALSE))
+results <- list()  # Initialize a list to store results
+average_rmse <- numeric()  # Vector to store the average RMSE of each combination
+params_labels <- character()  # Vector to store the corresponding parameter labels
+
+for (fold in 1: 10) {
+  test_indices  <- fold_indices[[fold]]
+  train_indices <- setdiff(1:n, test_indices)
+  
+  XTrain    = XTrue[train_indices,] # N_train x T
+  YTrain    = Ytilde_2[train_indices,] # N_train x T
+  XTest     = XTrue[test_indices,] # N_test x T
+  YTest     = Ytilde_2[test_indices,] # N_test x T
+  # Iterate over each combination of parameter values
+  for (k in candidate_values) {
+        b_s = b.fit(XTrain , YTrain, basismat, tobs, k, R = R2)
+        
+        Betafit_s = Beta.function(b = b_s ,basismat, tobs)
+        
+        Betafit_s   <- matrix(diag(Betafit_s ), nrow =length(tobs) , ncol =length(tobs))
+        #---------get cv score-------
+        Ypred           <- XTest %*% BetaTruemat
+        RMSE            <- YMSE(n = 20, YTest, Ypred, s)
+
+        # Store RMSE with parameter combination information
+        params <- paste("k=", k, sep=",")
+        if (!is.list(results[[params]])) {
+          results[[params]] <- numeric(10)  # Initialize numeric vector if not already initialized
+        }
+        results[[params]][fold] <- RMSE
+      }
+    }
+
+# Calculate average RMSE for each parameter combination
+for (param in names(results)) {
+  average_rmse <- c(average_rmse, mean(results[[param]], na.rm = TRUE))
+  params_labels <- c(params_labels, param)
+}
+
+# Identify the minimum RMSE and corresponding parameters
+min_index <- which.min(average_rmse)
+min_rmse <- average_rmse[min_index]
+best_params <- params_labels[min_index]
+
+cat("The minimum average RMSE is", min_rmse, "with parameters", best_params, "\n")
+
+
+
+# ------------Initialization--------------
+# --------------Full iterantion ---------
+
+max_iterations <- 50  # Limit on number of iterations to prevent infinite loops
+tolerance <- 1e-3     # Convergence criterion for changes in Beta
+converged <- FALSE
+iteration <- 0
+candidate_values <- c(1, 10, 100)  # Candidate values for tuning parameters
+
+# Initial computation of b and beta
+b_0 <- b.fit(XTrue, YTrue, basismat, tobs, k = 1, R = R2)
+Betafit <- Beta.function(b = b_coef, basismat, tobs)
+Betafit_0 <- matrix(diag(Betafit), nrow = length(tobs), ncol = length(tobs))
+
+# Main loop for iterative update
+while (!converged && iteration < max_iterations) {
+  iteration <- iteration + 1
+  previous_Betafit <- Betafit_0  # Save the previous Beta for convergence check
+  
+  # Cross-validation for gamma selection
+  best_gamma_value <- NULL
+  min_rmse_gamma   <- Inf
+  
+  for (lambda_y in candidate_values) {
+    for (lambda_t in candidate_values) {
+      fold_rmse <- c()
+      for (fold in 1:10) {
+        train_indices <- setdiff(1:n, fold_indices[[fold]])
+        test_indices <- fold_indices[[fold]]
+        # Training data preparation
+        ZetaTrain <- zeta[train_indices,]
+        ZetaTest  <- zeta[test_indices,]
+        Ystar_Train    <- YTrue[train_indices,] - XTrue[train_indices,] %*% previous_Betafit
+        Ystar_Test     <- YTrue[test_indices,]  - XTrue[test_indices,] %*% previous_Betafit
+        
+        W         <- compute.u(YTrain, d = 3, M = 20, domain = time_rangeval)
+        # Gamma computation
+        gamma_temp <- gamma.fun(ZetaTrain, W, basisphi, tobs, nbasis_psi, psi, y, lambda_y, lambda_t, R1, R3)
+        # Validation data preparation and RMSE calculation
+       
+        integralH_pred <- ZetaTest %*% t(gamma_temp) %*% t(PhiMat)
+        Ypred      <- XTest %*% Betafit_0 + integralH_pred
+        RMSE       <- sqrt(mean((YTest - Ypred)^2))
+        fold_rmse  <- c(fold_rmse, RMSE)
+      }
+      
+      avg_rmse <- mean(fold_rmse)
+      if (avg_rmse < min_rmse_gamma) {
+        min_rmse_gamma   <- avg_rmse
+        best_gamma_value <- list(lambda_y = lambda_y, lambda_t = lambda_t, gamma = gamma_temp)
+      }
+    }
+  }
+  
+  # Update gamma based on best parameters found in CV
+  gamma <- best_gamma_value$gamma
+  
+  # Cross-validation for beta selection
+  best_k_value <- NULL
+  min_rmse_beta <- Inf
+  
+  for (k in candidate_values) {
+    fold_rmse <- c()
+    for (fold in 1:10) {
+      train_indices <- setdiff(1:n, fold_indices[[fold]])
+      test_indices <- fold_indices[[fold]]
+      YTide_Train  <- YTrue[train_indices,] - ZetaTrain %*% t(gamma) %*% t(PhiMat)
+      YTide_Test   <- YTrue[test_indices,] - ZetaTest %*% t(gamma) %*% t(PhiMat)
+      
+      # Training and prediction under current k
+      
+      b_s <- b.fit(XTrain, YTide_Train , basismat, tobs, k, R = R2)
+      Betafit_s <- Beta.function(b = b_s, basismat, tobs)
+      Betafit_s <- matrix(diag(Betafit_s), nrow = length(tobs), ncol = length(tobs))
+      
+      Ypred <- XTest %*% Betafit_s
+      
+      # RMSE calculation
+      RMSE      <- ISE_beta(tobs, Beta_true, diag(Betafit_s))
+      fold_rmse <- c(fold_rmse, RMSE)
+    }
+    
+    avg_rmse <- mean(fold_rmse)
+    if (avg_rmse < min_rmse_beta) {
+      min_rmse_beta <- avg_rmse
+      best_k_value  <- k
+    }
+  }
+  
+  # Update Beta based on the best k found in CV
+  b_coef <-  b.fit(XTrue, YTrue - zeta %*% t(gamma) %*% t(PhiMat), basismat, tobs, best_k_value, R = R2)
+  Betafit <- Beta.function(b = b_coef, basismat, tobs)
+  Betafit <- matrix(diag(Betafit), nrow = length(tobs), ncol = length(tobs))
+  
+  # Convergence check
+  if (max(abs(Betafit - previous_Betafit)) < tolerance) {
+    converged <- TRUE
+  }
+}
+
+# Output final parameters and check convergence status
+cat("Iteration completed: ", iteration, "\n")
+cat("Convergence Status: ", ifelse(converged, "Converged", "Not Converged"), "\n")
+

@@ -252,6 +252,41 @@ PMSE = function(n, YTrue , Ypred, s){
   return(pmse)
 }
 
+
+ISE.fun <- function(m, n, h_hat, h ){
+  ISE <- 0
+  delta_t <- 1 / (m - 1)
+  delta_s <- 1 / (n - 1)
+  
+  for (i in 1: m) {
+    for (j in 1: n) {
+      ISE <- ISE + get_coeff(i) * get_coeff(j) * (h_hat[i,j] - h[i,j])^2
+    }
+  }
+  ISE <- (delta_t * delta_s) / 9 * ISE
+  return(ISE)
+}
+
+ISE_beta <- function(tobs,beta_true,beta_smooth_value ){
+  
+  quadpts <- tobs
+  delta  <- 1/length(tobs)
+  nquadpts <- length(quadpts)
+  quadwts <- as.vector(c(1,rep(c(4,2),(nquadpts-2)/2),4,1),mode="any")
+  quadwts <- c(1,rep(c(4,2),(nquadpts-1)/2))
+  quadwts[nquadpts] <- 1
+  quadwts <- quadwts*delta/3
+  
+  ISE <- sum(quadwts*(beta_true - beta_smooth_value)^2)
+  return(ISE)
+}
+
+
+
+
+
+
+
 #---- GIVE phi psi R1 R2-------
 
 basisphi <- basisphi.gen(d , M , domain = time_rangeval)

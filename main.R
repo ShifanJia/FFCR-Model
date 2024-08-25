@@ -315,7 +315,7 @@ R2       <- eval.penalty(theta.basis, Lfdobj =int2Lfd(2), tobs)
 
 #---Step 1. Begin with an initial estimate b0-----------
 
-b_coef0  <- b.fit(XTrue , YTrue, basismat, tobs, k= 0.1, R = R2)
+b_coef0  <- b.fit(XTrue , YTrue, basismat, tobs, k, R = R2)
 Betafit  <- Beta.function(b = b_coef0 ,basismat, tobs)
 
 Ystar1 = Yfit.fun(tobs,  XTrue , Betafit) 
@@ -333,7 +333,7 @@ nbasis <- dim(basismat)[2]
 
 W_1  <- compute.u(Ystar1 , d = 3, M = 20,  domain = time_rangeval)
 
-gamma_1 = gamma.fun(zeta, W_1 , basisphi, tobs, nbasis_psi, psi, y, 0.01, 0,01, R1,R3)
+gamma_1 = gamma.fun(zeta, W_1 , basisphi, tobs, nbasis_psi, psi, y, lambda_y,lambda_t, R1,R3)
 
 hpredorder1 <- PhiMat  %*% gamma_1 %*% t(Psiyorder)
 
@@ -352,7 +352,7 @@ Ystar2 = Yfit.fun(tobs,  XTrue , Betafit1)
 
 W_2  <- compute.u(Ystar2 , d = 3, M = 20,  domain = time_rangeval)
 
-gamma_2 = gamma.fun(zeta, W_2 , basisphi, tobs, nbasis_psi, psi, y, 0.01, 0.01, R1, R3)
+gamma_2 = gamma.fun(zeta, W_2 , basisphi, tobs, nbasis_psi, psi, y,lambda_y,lambda_t, R1, R3)
 
 hpredorder2 <- PhiMat  %*% gamma_2 %*% t(Psiyorder)
 
@@ -383,8 +383,9 @@ Ystar1    = Yfit.fun(tobs,  XTrue , Betafit_0)
 
 
 fold_indices <- split(1:n, cut(1:n, breaks = 10, labels = FALSE))
-candidate_values <- c(0.01, 0.1, 0.5, 1)
+candidate_values <- c(0.01, 0.1, 0.5, 1) # set value of lambda_y,lambda_t
 results <- list()  # Initialize a list to store results
+
 average_rmse <- numeric()  # Vector to store the average RMSE of each combination
 params_labels <- character()  # Vector to store the corresponding parameter labels
 
@@ -603,4 +604,307 @@ while (!converged && iteration < max_iterations) {
 # Output final parameters and check convergence status
 cat("Iteration completed: ", iteration, "\n")
 cat("Convergence Status: ", ifelse(converged, "Converged", "Not Converged"), "\n")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+rm(list=ls(all=TRUE))
+time1 <- Sys.time()
+print(time1)
+args <- commandArgs(trailingOnly = TRUE) # take command argument (user input) into variable args
+seed = as.numeric(args[1]) # passing user's first argument to variable seed
+cat(paste(" Seed =", seed,"\n") )  # The random seed
+set.seed(seed)
+
+
+
+n  <- 200 
+p  <- 500
+T  <- 1
+tobs <- seq(0, T, length.out = p)
+time_rangeval  <- c(0, T)
+
+
+#-------------------------- simulate X(t)--------------------------------------------
+
+data.generator.bsplines = function(n, nknots, norder, p , domain) {
+  knots    = seq(domain[1],domain[2], length.out = nknots)
+  nbasis   = nknots + norder - 2 
+  basis    = create.bspline.basis(knots, nbasis, norder)
+  tobs = seq(domain[1],domain[2],length.out = p)
+  basismat = eval.basis(tobs, basis) 
+  x=array(NA,c(n,p))
+  for(i in 1:n){
+    x[i,] = rnorm(nbasis, 0, 1)%*%t(basismat)
+  }
+  return(x)
+}
+
+
+
+# ------------------------ simulate A(s)-----------------------------
+
+A.fun = function(s) { 
+  c1 <- runif(1, 0, 0.05)
+  c2 <- runif(1, 0, 0.5)
+  c3 <- runif(1, 0, 0.5)
+  c4 <- runif(1, 0, 0.5)
+  c5 <- runif(1, 0, 0.5)
+  
+  return(c1 + cos(c2)*sin(pi * s/2) + sin(c3)* cos(pi*s/2)
+         + cos(c4)* sin(pi*s)  + sin(c5)* cos(pi*s))
+  
+}
+
+s          <- seq(0,T,length.out = p)
+
+simulate.As <- function(num_samples, num_points, s) {
+  data <- matrix(0, nrow = num_samples, ncol = num_points)
+  for (i in 1:num_samples) {
+    data[i, ] <- A.fun(s)
+  }
+  return(data)
+} # N*P
+
+
+
+As <- simulate.As(num_samples = n, num_points = p, s) # simulate A(s) in (0,1)
+
+
+
+# ----------------------Simulate Beta(t)--------------------
+
+theta.basis.fun <- function(d, M, time_rangeval){
+  norder  = d + 1
+  nknots  = M + 1 
+  knots  = seq(time_rangeval[1], time_rangeval[2], length.out = nknots)# b-spline knot points 
+  nbasis  = nknots + norder - 2 
+  theta.basis = create.bspline.basis(time_rangeval, nbasis, norder)
+  return(theta.basis)
+}
+
+
+
+theta.spline.generator = function(d, M, time_rangeval,tobs ) { 
+  norder  = d + 1
+  nknots  = M + 1 # knots number
+  knots  = seq(time_rangeval[1], time_rangeval[2], length.out = nknots)# b-spline knot points 
+  # basis function number
+  nbasis  = nknots + norder - 2 
+  theta.basis = create.bspline.basis(time_rangeval, nbasis, norder)
+  # theta(t) matrix value
+  basismat = eval.basis(tobs,theta.basis) # 1000 x 53
+  return(basismat)
+}
+
+
+#----------------------scenario II: beta1(t) ---------------- 
+Beta_true <- sin(2*pi*tobs)
+#----------------------scenario I: beta2(t) ---------------- 
+Beta_true <- cos(2*pi*tobs)
+
+
+BetaTruemat   <- matrix(diag(Beta_true), nrow =length(tobs) , ncol =length(tobs))
+
+# -----------------------simulate h(t, y) ------------------------------
+
+h.fun = function(t, y){
+  h = cos(10*t - 5 - (5*(y - 0.5)))
+  return(h)
+}
+# 
+# h.fun <- function(t,y){
+#   z =  t*exp(y)
+#   return(z)
+# }
+
+# --------------plot H surface---------------
+t <- tobs  
+y <- seq(min(As),max(As),length.out = p)
+y_order   <- sort(y)
+hsurface  <- outer(t, y , h.fun)
+hsurface2 <- outer(t, y_order, h.fun)
+
+#---------------compute the integral of h surface---------------
+
+
+integralHTrue <- hintergral.fun(n = n, p, tobs, As) # N*P
+
+
+# ---------------Signal-to-Noise ratio-----------------------------------------
+y0   = XTrue %*% BetaTruemat + integralHTrue 
+
+
+eps0 = apply(y0, 1 , sd)
+SNR1  = 5
+SNR2  = 10
+
+noise1 <- matrix(nrow = nrow(y0), ncol = length(tobs))
+
+for (i in 1:nrow(y0)) {
+  noise1[i, ] <- rnorm(length(tobs), 0, eps0[i]/sqrt(SNR1))
+}
+
+noise2 <- matrix(nrow = nrow(y0), ncol = length(tobs))
+for (i in 1:nrow(y0)) {
+  noise2[i, ] <- rnorm(length(tobs), 0, eps0[i]/sqrt(SNR2))
+}
+
+
+# --Y(t) = X(t)Beta(t) + \int h(t,A(s))ds + error(t) 
+# ------------------ Y(t)----------------------------------------------
+YTrue = XTrue %*% BetaTruemat + integralHTrue + noise1 # N*P under snr=5
+#YTrue = XTrue %*% BetaTruemat + integralHTrue + noise2 # N*P
+
+YMean = apply(YTrue,1,mean)
+YTrue = YTrue - YMean
+
+Ytilde = YTrue - integralHTrue
+
+Ystar  = YTrue - XTrue %*% BetaTruemat
+
+
+#--- rewrite the code of fda book
+PMSE = function(n, YTrue , Ypred, s){
+  MSE = matrix(0, nrow = 1, ncol = n)
+  for (i in 1 : n ) {
+    Yerror <- YTrue - Ypred
+    delta   <- 1/length(s) 
+    nA0     <- length(s)  
+    coeffs  <- c(1, rep(c(4, 2), (nA0 - 1) / 2))
+    coeffs[nA0]  <- 1
+    quadwts      <- coeffs * delta / 3
+    MSE[i]  <- quadwts %*% Yerror[i,]^2
+  }
+  pmse = mean(MSE)
+  return(pmse)
+}
+
+basisphi.gen = function(d , M , domain ){
+  norder     = d + 1
+  nknotsphi  = M + 1 # knots number
+  knots_phi  = seq(domain[1], domain[2], length.out = nknotsphi)
+  nbasis_phi = nknotsphi + norder - 2
+  basis = create.bspline.basis(domain, nbasis_phi, norder)
+  return(basis)
+}
+
+
+compute.phi  = function( d , M , domain , t){
+  norder     = d + 1
+  nknotsphi  = M + 1 # knots number
+  knots_phi  = seq(domain[1], domain[2], length.out = nknotsphi)
+  nbasis_phi = nknotsphi + norder - 2  # basis function number
+  K          = nbasis_phi
+  basisphi   = create.bspline.basis(domain, nbasis_phi, norder)
+  PhiMat     = eval.basis(t , basisphi) # 
+  return(PhiMat)
+}
+
+compute.u  = function(Y, d, M, domain){
+  norder   = d + 1
+  nknots   = M + 1
+  knots    = seq(domain[1],domain[2], length.out = nknots)
+  nbasis   = nknots + norder - 2
+  basis    = create.bspline.basis(knots, nbasis , norder)
+  p        = dim(Y)[2]
+  tobs     = seq(domain[1], domain[2], length.out = p)
+  basismat = eval.basis(tobs, basis) # p x M+d
+  
+  cef      = c(1,rep(c(4,2),(p-1)/2))
+  cef[p]   = 1
+  h        = 1/(  p- 1)
+  
+  u   = h/3* Y %*% diag(cef) %*% basismat
+  return(u)
+}
+
+PhiMat   <- compute.phi ( d = 3, M =4, domain = time_rangeval , t= tobs)
+basisphi <- basisphi.gen(d = 3, M = 4, domain = time_rangeval)
+
+tMat = PhiMat
+sMat = compute.phi ( d = 3, M = 4, domain = time_rangeval , t= tobs)
+#sMat = compute.phi ( d = 3, M = 20, domain = time_rangeval , t= tobs)
+
+n_psi = basisphi$nbasis
+Y.Phi.Mat = compute.u(Ystar , d = 3, M = 4,  domain = time_rangeval)
+#Y.Phi.Mat = compute.u(Ystar , d = 3, M = 20,  domain = time_rangeval)
+
+computeZ = function(n, n_psi, smat, s){
+  z = matrix(0, nrow = n, ncol = n_psi)
+  for (i in 1 : n) {
+    for (j in 1 : n_psi) {
+      delta   <- 1/length(s) 
+      nA0     <- length(s)  
+      coeffs  <- c(1, rep(c(4, 2), (nA0 - 1) / 2))
+      coeffs[nA0]  <- 1
+      quadwts      <- coeffs * delta / 3
+      z[i , j]  <- quadwts %*% smat[ , j]
+    }
+  }
+  return(z)
+}
+
+s    <- seq(0,1,length.out = p)
+z    <- computeZ(n = 200, n_psi, sMat, s) # n*7
+
+B.fun <- function(z,Y.Phi.Mat,basisphi,tobs,n_psi){
+  ZYPhi    <- t(z) %*% Y.Phi.Mat
+  vec.ZYPhi <- as.vector(ZYPhi) # vec in col
+  inprod_z  <- t(z)%*% z
+  Jphiphi      <- eval.penalty(basisphi, Lfdobj =int2Lfd(0), tobs)
+  B            <- kronecker(Jphiphi,inprod_z)
+  Vec.gamma    <- ginv(B) %*% vec.ZYPhi
+  b_Matrix <- matrix(Vec.gamma, nrow = basisphi$nbasis , ncol= n_psi)
+  return(b_Matrix)
+}
+
+B = B.fun(z,Y.Phi.Mat , basisphi, tobs , n_psi = 7)
+# sim 2 B = B.fun(z,Y.Phi.Mat , basisphi, tobs,  n_psi = 23)
+
+coeff_hat <- sMat %*% B %*% t(tMat)
+
+A10 = As[10,]
+A10surface = A10*coeff_hat
+
+
+Yfof  <- z %*% t(B) %*% t(PhiMat)
+PMSE1 = PMSE(n=200, Ystar, Yfof, s)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -1,5 +1,4 @@
-source('PMSE.R')
-source('Funs.R')
+source('main.R')
 
 windspeed = read.csv("WindSpeed.csv",header = T,row.names = 1)
 

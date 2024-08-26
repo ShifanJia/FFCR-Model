@@ -331,7 +331,7 @@ nbasis <- dim(basismat)[2]
 
 # -------step 2 solve gamma-----------------------------------------------
 
-W_1  <- compute.u(Ystar1 , d = 3, M = 20,  domain = time_rangeval)
+W_1  <- compute.u(Ystar1 , d = 3, M = 47,  domain = time_rangeval)
 
 gamma_1 = gamma.fun(zeta, W_1 , basisphi, tobs, nbasis_psi, psi, y, lambda_y,lambda_t, R1,R3)
 
@@ -350,7 +350,7 @@ lines(tobs, Beta_true, col='red')
 #---------next iertation----------------------------------
 Ystar2 = Yfit.fun(tobs,  XTrue , Betafit1) 
 
-W_2  <- compute.u(Ystar2 , d = 3, M = 20,  domain = time_rangeval)
+W_2  <- compute.u(Ystar2 , d = 3, M =  47,  domain = time_rangeval)
 
 gamma_2 = gamma.fun(zeta, W_2 , basisphi, tobs, nbasis_psi, psi, y,lambda_y,lambda_t, R1, R3)
 
@@ -405,7 +405,7 @@ for (fold in 1: 10) {
       for (lambda_t in candidate_values) {
         Ystar1  = YTrain - XTrain %*% t(Betafit_0)
         
-        W_1     <- compute.u(Ystar1 , d = 3, M = 20,  domain = time_rangeval)
+        W_1     <- compute.u(Ystar1 , d = 3, M =  47,  domain = time_rangeval)
         
         gamma_1 = gamma.fun(ZetaTrain, W_1 , basisphi, tobs, nbasis_psi, psi, y, lambda_y,lambda_t, R1,R3)
         
@@ -839,15 +839,15 @@ compute.u  = function(Y, d, M, domain){
   return(u)
 }
 
-PhiMat   <- compute.phi ( d = 3, M =4, domain = time_rangeval , t= tobs)
-basisphi <- basisphi.gen(d = 3, M = 4, domain = time_rangeval)
+PhiMat   <- compute.phi ( d = 3, M = 47, domain = time_rangeval , t= tobs)
+basisphi <- basisphi.gen(d = 3, M = 47, domain = time_rangeval)
 
 tMat = PhiMat
-sMat = compute.phi ( d = 3, M = 4, domain = time_rangeval , t= tobs)
+sMat = compute.phi ( d = 3, M =  47, domain = time_rangeval , t= tobs)
 #sMat = compute.phi ( d = 3, M = 20, domain = time_rangeval , t= tobs)
 
 n_psi = basisphi$nbasis
-Y.Phi.Mat = compute.u(Ystar , d = 3, M = 4,  domain = time_rangeval)
+Y.Phi.Mat = compute.u(Ystar , d = 3, M =  47,  domain = time_rangeval)
 #Y.Phi.Mat = compute.u(Ystar , d = 3, M = 20,  domain = time_rangeval)
 
 computeZ = function(n, n_psi, smat, s){

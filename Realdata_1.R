@@ -235,14 +235,14 @@ time_rangeval <- c(0,12)
 tobs <- dense
 
 # Define t basis function
-t_basis <- basisphi.gen(d = 3, M = 4, domain = time_rangeval)
+t_basis <- basisphi.gen(d = 3, M = 34, domain = time_rangeval)
 L          <- t_basis$nbasis # d+M
 
 # evaluate basis matrix of X(t)
-t_basisMat  <- compute.phi( d = 3, M = 4, domain = time_rangeval , t= tobs)
+t_basisMat  <- compute.phi( d = 3, M = 34, domain = time_rangeval , t= tobs)
 
 # Define temperate s basis function
-As_basis  <- psi.generator (d = 3, M = 4, domain = c(min(Amat), max(Amat)))
+As_basis  <- psi.generator (d = 3, M = 34, domain = c(min(Amat), max(Amat)))
 
 # evaluate basis matrix of psi at A(s)
 
@@ -255,7 +255,7 @@ R2     <- eval.penalty(theta, Lfdobj =int2Lfd(2), tobs)
 
 
 # basis function of theta(t)
-basismat <- theta.spline.generator(d = 3, M = 4 ,time_rangeval= c(0,12), tobs)
+basismat <- theta.spline.generator(d = 3, M = 34 ,time_rangeval= c(0,12), tobs)
 
 # solve b0 begin value in iterative
 #b_0       <- b.fit(Xmat_train, Ymat_train, basismat, tobs)
@@ -268,7 +268,7 @@ Betafit_0 <- matrix(diag(Betafit_0 ), nrow =length(tobs) , ncol =length(tobs))
 # Y*(t) at 1st iterative
 Ystar_1   <- Ymat_train - Xmat_train %*% t(Betafit_0)
 
-W_1    <- compute.u(Ystar_1 , d = 3, M = 4,  domain = time_rangeval)
+W_1    <- compute.u(Ystar_1 , d = 3, M = 34,  domain = time_rangeval)
 
 zeta   <- computeZeta(n = 28, nbasis_As, As_psi_evalist, s=dense)
 
@@ -312,7 +312,7 @@ Betafit_1  <- matrix(diag(Betafit_1), nrow =length(tobs) , ncol =length(tobs))
 # Y^*(2) at 2nd iterative
 Ystar_2  = Ymat_train - Xmat_train %*% t(Betafit_1)
 
-W_2  = compute.u(Ystar_2 , d = 3, M = 4,  domain = time_rangeval)
+W_2  = compute.u(Ystar_2 , d = 3, M = 34,  domain = time_rangeval)
 
 # gamma^(2) at 2st iterative
 gamma_2 = gamma.fun(zeta, W_2 , t_basis, tobs = Month, nbasis_As)
@@ -526,7 +526,7 @@ PenMat_y <- kronecker(Jphiphi,R1)
 PenMat_t <- kronecker(R2,Jpsipsi)
 
 Ystar = Ymat_train - XtBeta_train
-Y.Phi.Mat = compute.u(Ystar , d = 3, M = 7,  domain = time_rangeval)
+Y.Phi.Mat = compute.u(Ystar , d = 3, M = 34,  domain = time_rangeval)
 
 
 lambda_t_values <- exp(seq(-10, 0,length.out = 11)) #-20 1 30

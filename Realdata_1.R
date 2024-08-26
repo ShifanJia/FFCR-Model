@@ -217,7 +217,7 @@ Xmat <- X_mat - xmean
 Ymat <- Y_mat - ymean
 #Amat <- A_mat - Amean
 Amat = A_mat
-set.seed(123) # Setting a seed for reproducibility
+
 random_columns <- sample(1:34, 34)
 
 # Select the first 28 columns for Xmat and Ymat based on the shuffled indices
@@ -277,47 +277,6 @@ y <- seq(min(Amat_train),max(Amat_train), length.out = 12)
 R1  <- eval.penalty(As_basis, Lfdobj = int2Lfd(2),  y) # L*L
 R3  <- eval.penalty(t_basis,  Lfdobj = int2Lfd(2), tobs) # K*K
 Psiy  = eval.basis(y, As_basis)
-
-gamma_1 = gamma.fun(zeta, W_1 , t_basis,Month, nbasis_As, As_basis, y,0.1,0, R1,R3)
-
-
-
-# h^(1) at 1st iterative
-
-hpredorder1 <- t_basisMat  %*% gamma_1 %*% t(Psiy)
-
-plott <- plot_ly(x = ~ tobs, y = ~ y, z = ~ hpredorder1, type = "surface")
-layout(plott, scene =
-         list(xaxis = list(title = "t-axis"),
-              yaxis = list(title = "s-axis"),
-              zaxis = list(title = "h"),
-              title = "H Surface Plot"))
-
-integralH_1  <- zeta %*% t(gamma_1) %*% t(t_basisMat)
-
-# Y^~(t)
-Ytilde_2 = Ymat_train - integralH_1
-
-# b^(1) at 2nd iterative
-b_1  = b.fit(Xmat_train , Ytilde_2, basismat, tobs, k= 0.1, R = R2)
-
-# beta^(1) at 2nd iterative
-Betafit_1 = Beta.function(b = b_1 ,basismat, tobs)
-
-plot(Betafit_1) 
-
-Betafit_1  <- matrix(diag(Betafit_1), nrow =length(tobs) , ncol =length(tobs))
-
-# Y^*(2) at 2nd iterative
-Ystar_2  = Ymat_train - Xmat_train %*% t(Betafit_1)
-
-W_2  = compute.u(Ystar_2 , d = 3, M = 34,  domain = time_rangeval)
-
-# gamma^(2) at 2st iterative
-gamma_2 = gamma.fun(zeta, W_2 , t_basis, tobs = Month, nbasis_As)
-
-# h^(2) at 2nd iterative
-hpredorder2 <- t_basisMat  %*% gamma_2 %*% t(Psiy)
 
 # ---Set a convergence criterion and maximum number of iterations
 convergence_criterion = 1e-3
